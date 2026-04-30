@@ -17,7 +17,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 
 
-VEL_LINEAL  = 0.08   # m/s
+VEL_LINEAL  = 0.16   # m/s
 GANANCIA    = 2.0    # ganancia proporcional
 DIST_OBJ    = 0.75   # m — distancia deseada a la pared
 DIST_MAX    = 10.0   # m — valor de saturación para lecturas inf
@@ -54,7 +54,7 @@ class SeguidorParedes(Node):
 
         if frontal < DIST_OBJ:
             cmd.linear.x  = 0.0
-            cmd.angular.z = -GANANCIA
+            cmd.angular.z = -GANANCIA * 0.75
             self.get_logger().info('Obstáculo al frente — girando a la derecha')
         elif izquierda > 3.0 * DIST_OBJ:
             cmd.linear.x  = VEL_LINEAL
