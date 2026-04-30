@@ -31,9 +31,9 @@ from sensor_msgs.msg import LaserScan
 
 
 # ── Parámetros del robot ────────────────────────────────────────────────────
-VEL_LINEAL   = 0.10          # m/s
-VEL_ANG_MAX  = 2.0           # rad/s — saturación de angular_z
-GAIN_DIR     = 1.2            # ganancia proporcional sobre la dirección más libre
+VEL_LINEAL   = 0.16          # m/s
+VEL_ANG_MAX  = 1.0           # rad/s — saturación de angular_z
+GAIN_DIR     = 1.0            # ganancia proporcional sobre la dirección más libre
 VARIACION    = 1.2            # rad/s — paso de corrección lateral por ciclo
 
 # Zonas de análisis (índices sobre ~720 muestras, angle_min≈-π, 0.5°/muestra)
@@ -49,6 +49,7 @@ RIGHT_MIN    = 510   # inicio zona lateral derecha   (robot_angle ≈ -π/2)
 RIGHT_MAX    = 570   # fin   zona lateral derecha
 
 MAX_RANGE    = 3.5    # m — distancia máxima válida (ignora inf)
+ANCHO_VENTANA = 120   # rayos — ancho mínimo de paso (~20° a 0.5°/rayo, ≈ ancho del robot a 1m)
 
 
 class Explorador(Node):
@@ -93,8 +94,8 @@ class Explorador(Node):
     # ── lógica de navegación ───────────────────────────────────────────────
 
     def _actualizar_direccion(self):
-        """Encuentra el rayo más lejano en el semicírculo frontal (wrap-around)
-        y calcula la angular_z proporcional para orientarse hacia él.
+        """Busca la ventana de ANCHO_VENTANA rayos consecutivos cuyo mínimo
+        es el mayor (= paso más ancho y despejado que cabe el robot).
 
         robot_angle = index * angle_increment, normalizado a (-π, π]:
           index=0   → 0 rad → FRENTE
@@ -102,25 +103,31 @@ class Explorador(Node):
           index=540 → -π/2  → DERECHA  (3π/2 normalizado a -π/2)
         """
         ranges = self._scan.ranges
-        max_dist = 0.0
-        max_idx  = 0
+        n = len(ranges)
+        indices_frontales = list(range(FRONT_LMIN, FRONT_LMAX)) + list(range(FRONT_RMIN, FRONT_RMAX))
 
-        for i in list(range(FRONT_LMIN, FRONT_LMAX)) + list(range(FRONT_RMIN, FRONT_RMAX)):
-            r = ranges[i]
-            if 0.15 < r < MAX_RANGE and r > max_dist:
-                max_dist = r
-                max_idx  = i
+        mejor_score = -1.0
+        mejor_centro = 0
 
-        # Ángulo robot-frame: positivo = izquierda, negativo = derecha
-        direction = max_idx * self._angle_inc
+        for k in range(len(indices_frontales) - ANCHO_VENTANA + 1):
+            ventana = indices_frontales[k:k + ANCHO_VENTANA]
+            vals = [ranges[i] for i in ventana if 0.15 < ranges[i] < MAX_RANGE]
+            if not vals:
+                continue
+            score = min(vals)   # el paso más estrecho dentro de la ventana
+            if score > mejor_score:
+                mejor_score = score
+                mejor_centro = indices_frontales[k + ANCHO_VENTANA // 2]
+
+        direction = mejor_centro * self._angle_inc
         if direction > math.pi:
             direction -= 2 * math.pi
 
         self._angular_z = direction * GAIN_DIR
 
         self.get_logger().info(
-            f'rayo_max={math.degrees(direction):.1f}°  '
-            f'dist={max_dist:.2f} m  omega={self._angular_z:.3f} rad/s')
+            f'ventana_centro={math.degrees(direction):.1f}°  '
+            f'paso_min={mejor_score:.2f} m  omega={self._angular_z:.3f} rad/s')
 
     def _verificar_laterales(self):
         """Si algún lateral entra en la burbuja de seguridad,
