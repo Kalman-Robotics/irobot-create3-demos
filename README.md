@@ -52,15 +52,15 @@ echo "source ~/rrbot_ws/install/setup.bash" >> ~/.bashrc
 ```
 
 > [!WARNING]
-> **Unestación de cargaing obligatorio antes de cualquier demo**
+> **Desacople obligatorio antes de cualquier demo**
 >
-> El iRobot Create 3 arranca acoplado a su estación de carga de carga. Ejecuta este comando antes de lanzar cualquier demo:
+> El iRobot Create 3 arranca acoplado a su estación de carga (la base donde se conecta el robot para cargar la batería). Antes de lanzar cualquier demo debes desacoplarlo ejecutando:
 >
 > ```bash
-> ros2 action send_goal /unestación de carga irobot_create_msgs/action/Unestación de carga "{}"
+> ros2 action send_goal /undock irobot_create_msgs/action/Undock "{}"
 > ```
 >
-> El robot retrocederá y girará del estación de carga y quedará listo para recibir comandos de movimiento.
+> El robot retrocederá de la estación de carga y quedará listo para recibir comandos de movimiento.
 
 ---
 
@@ -146,7 +146,7 @@ Abre un terminal nuevo y ejecuta:
 ros2 run irobot_demos telemetria_live
 ```
 
-**Qué hace:** Muestra un panel actualizado a 2 Hz con: posición `(x, y)` y orientación, velocidad lineal y angular, voltaje y porcentaje de batería, estado del estación de carga (cargando / libre) y ángulos roll/pitch del IMU. No envía nada al robot — es solo lectura.
+**Qué hace:** Muestra un panel actualizado a 2 Hz con: posición `(x, y)` y orientación, velocidad lineal y angular, voltaje y porcentaje de batería, estado de la estación de carga (cargando / libre) y ángulos roll/pitch del IMU. No envía nada al robot — es solo lectura.
 
 > **Cómo usarlo:** abre el joystick en el navegador del laboratorio, mueve el robot y observa cómo cambian en tiempo real la posición y la velocidad en el panel. Para detener el panel, presiona `Ctrl+C` en el terminal.
 
@@ -154,7 +154,7 @@ ros2 run irobot_demos telemetria_live
 - `/odom` (`nav_msgs/Odometry`) — posición, orientación y velocidades
 - `/battery_state` (`sensor_msgs/BatteryState`) — voltaje y porcentaje de batería
 - `/imu` (`sensor_msgs/Imu`) — roll y pitch
-- `/estación de carga_status` (`irobot_create_msgs/DockStatus`) — estado del estación de carga (si el paquete está disponible)
+- `/dock_status` (`irobot_create_msgs/DockStatus`) — estado de la estación de carga (si el paquete está disponible)
 
 **Código:** [irobot_demos/telemetria_live.py](irobot_demos/irobot_demos/telemetria_live.py)
 
@@ -193,6 +193,12 @@ ros2 run irobot_demos radar --ros-args -p escala:=0.05 -p radio:=2.0
 ```
 
 **Qué hace:** Dibuja un mapa ASCII de 61×31 caracteres centrado en el robot donde `↓` representa el robot (apuntando hacia abajo = frente) y cada `X` es un obstáculo detectado por el LiDAR en el frame del robot. Se actualiza a ~2 Hz.
+
+> **Visualización completa con RViz:** para ver el modelo del robot, el LiDAR y la odometría en tiempo real con gráficos, usa RViz:
+>
+> ```bash
+> ros2 run rviz2 rviz2 -d ~/rrbot_ws/src/irobot-create3-demos/irobot_demos/rviz/rrbot.rviz
+> ```
 
 **Qué usa:**
 - `/scan` (`sensor_msgs/LaserScan`) — lecturas del LiDAR convertidas a coordenadas del robot
