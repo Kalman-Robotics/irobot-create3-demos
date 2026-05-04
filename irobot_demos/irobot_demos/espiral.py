@@ -44,7 +44,7 @@ class Espiral(Node):
             self.pub.publish(Twist())
             self.timer.cancel()
             self.get_logger().info('¡Espiral completada!')
-            return
+            raise SystemExit
 
         t = self._tick / self._total
 
@@ -65,7 +65,10 @@ class Espiral(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = Espiral()
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
+    except SystemExit:
+        pass
     node.destroy_node()
     rclpy.shutdown()
 
