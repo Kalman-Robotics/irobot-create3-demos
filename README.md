@@ -275,21 +275,146 @@ ros2 run irobot_demos explorador --ros-args -p burbuja:=0.60
 
 </details>
 
-<details open>
+<details>
 <summary><b>Navegación Autónoma</b></summary>
 
-![mapeo](img/nav2_mapeo.png)
+El RRBOT puede construir un mapa del entorno, localizarse dentro de él y planificar rutas hacia un destino evitando obstáculos en tiempo real. Esta sección cubre el flujo completo: mapear el espacio y luego navegar de forma autónoma.
 
-![pose inicial por defecto en nav2](img/nav2_pose0.png)
+Antes de empezar, asegúrate de que el robot está desacoplado de la estación de carga y el LiDAR está publicando:
 
-![colocar con click la pose inicial](img/nav2_pose1.png)
+```bash
+ros2 action send_goal /undock irobot_create_msgs/action/Undock "{}"
+ros2 topic hz /scan
+```
 
-![despues del click](img/nav2_pose2.png)
+---
 
-![luego de dar vuelta, localizacion correcta](img/nav2_pose3.png)
+### Paso 1 — Construir el mapa con SLAM Toolbox
 
-![previo a darle click para goal](img/nav2_goal1.png)
+Con los sensores verificados, mapea el entorno. Mueve el robot lentamente por todo el espacio — cuanto más lo recorras, mejor será el mapa resultante.
 
-![luego del click, ver goal y path](img/nav2_goal2.png)
+```bash
+ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false slam:=true rviz:=true
+```
+
+**Qué hace:** Lanza SLAM Toolbox, que combina las lecturas del LiDAR con la odometría para construir un mapa de ocupación en tiempo real. RViz muestra el mapa creciendo a medida que el robot explora.
+
+**Qué usa:**
+- `/scan` (`sensor_msgs/LaserScan`) — contornos del entorno detectados por el LiDAR
+- `/odom` (`nav_msgs/Odometry`) — desplazamiento acumulado del robot
+- `/tf` — posición del robot dentro del mapa
+
+> **Tip:** mueve el robot despacio y con giros amplios para que SLAM Toolbox tenga tiempo de procesar cada zona. Los pasillos estrechos o esquinas sin recorrer quedan como zonas desconocidas en el mapa.
+
+<p align="center">
+  <img src="img/nav2_mapeo.png" alt="Mapa de ocupación construyéndose en tiempo real en RViz" width="600"/><br/>
+  <em>Mapa de ocupación en construcción: blanco = espacio libre, negro = obstáculo, gris = zona no explorada aún.</em>
+</p>
+
+Cuando el mapa se vea completo, **guárdalo antes de cerrar el launch**. Abre un terminal nuevo y ejecuta desde la carpeta donde quieras guardar el mapa:
+
+```bash
+mkdir -p ~/mis_mapas && cd ~/mis_mapas
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "name:
+  data: '$(pwd)/mi_mapa'"
+```
+
+Esto genera `mi_mapa.pgm` y `mi_mapa.yaml` en `~/mis_mapas/`. Para usar ese mapa en la navegación, pásalo con el argumento `map`:
+
+```bash
+ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false \
+  localization:=true nav2:=true rviz:=true \
+  map:=~/mis_mapas/mi_mapa.yaml
+```
+
+Si omites `map:=`, se usará el mapa incluido por defecto en el paquete.
+
+---
+
+### Paso 3 — Navegar de forma autónoma
+
+Con el mapa guardado en el Paso 1, lanza la navegación autónoma usando tu propio mapa:
+
+```bash
+ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false \
+  localization:=true nav2:=true rviz:=true \
+  map:=~/mis_mapas/mi_mapa.yaml
+```
+
+Si no tienes un mapa propio, puedes omitir `map:=` y el paquete usará el mapa incluido por defecto:
+
+```bash
+ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false localization:=true nav2:=true rviz:=true
+```
+
+**Qué hace:** Lanza Nav2 con localización AMCL sobre el mapa existente. El robot planifica rutas, evita obstáculos en tiempo real y se desplaza de forma autónoma hacia los objetivos que le indiques desde RViz.
+
+**Qué usa:**
+- `/scan` (`sensor_msgs/LaserScan`) — detección de obstáculos en tiempo real durante la navegación
+- `/odom` (`nav_msgs/Odometry`) — estimación de posición dentro del mapa
+- `/map` (`nav_msgs/OccupancyGrid`) — mapa de referencia para planificación de rutas
+- `/cmd_vel` (`geometry_msgs/Twist`) — comandos de velocidad generados por Nav2
+
+**Cómo usarlo una vez lanzado:**
+
+1. Al abrirse RViz el robot aparece con una pose inicial en el mapa, pero AMCL aún no ha confirmado su posición real — las partículas están concentradas en ese punto inicial pero la localización es solo una estimación de partida.
+
+<p align="center">
+  <img src="img/nav2_pose0.png" alt="RViz abierto, robot con pose inicial pero localización no confirmada" width="600"/><br/>
+  <em>Estado inicial — el robot tiene una pose de partida, pero AMCL necesita relocalizar para confirmar la posición real.</em>
+</p>
+
+2. Selecciona la herramienta **"2D Pose Estimate"** y haz clic en el mapa en la posición real del robot, arrastrando en la dirección en la que apunta, para indicarle a AMCL desde dónde relocalizar.
+
+<table align="center">
+  <tr><td align="center"><img src="img/nav2_pose1.png" alt="Click en el mapa con la herramienta 2D Pose Estimate" width="600"/><br/><em>Seleccionar la herramienta y hacer clic en el mapa</em></td></tr>
+  <tr><td align="center"><img src="img/nav2_pose2.png" alt="Pose inicial enviada, partículas dispersas del AMCL" width="600"/><br/><em>Pose enviada — las partículas del AMCL aparecen concentradas en la zona indicada</em></td></tr>
+  <tr><td align="center"><img src="img/nav2_pose3.png" alt="Partículas del AMCL convergiendo tras girar el robot" width="600"/><br/><em>Tras girar el robot manualmente, las partículas convergen y la localización mejora</em></td></tr>
+</table>
+
+3. Selecciona la herramienta **"2D Nav Goal"** y haz clic en el destino dentro del mapa. El robot calculará una ruta y se desplazará automáticamente hasta allí.
+
+<table align="center">
+  <tr><td align="center"><img src="img/nav2_goal1.png" alt="Click en el destino con la herramienta 2D Nav Goal" width="600"/><br/><em>Seleccionar destino con la herramienta 2D Nav Goal</em></td></tr>
+  <tr><td align="center"><img src="img/nav2_goal2.png" alt="Ruta planificada por Nav2 visible en RViz" width="600"/><br/><em>Nav2 calcula la ruta y el robot se desplaza automáticamente</em></td></tr>
+</table>
+
+---
+
+### Alternativa — Navegar mientras se construye el mapa (SLAM + Nav2)
+
+Si no tienes un mapa guardado o quieres explorar un entorno nuevo, puedes mapear y navegar al mismo tiempo. El robot construye el mapa en tiempo real y lo usa simultáneamente para planificar rutas.
+
+```bash
+ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false slam:=true nav2:=true rviz:=true
+```
+
+**Qué hace:** Lanza SLAM Toolbox y Nav2 juntos. El mapa se va construyendo a medida que el robot se mueve y Nav2 lo usa en tiempo real para planificar rutas hacia los objetivos que le indiques. No requiere una pose inicial — SLAM mantiene la localización del robot desde el arranque.
+
+**Qué usa:**
+- `/scan` (`sensor_msgs/LaserScan`) — construcción del mapa y detección de obstáculos
+- `/odom` (`nav_msgs/Odometry`) — estimación de posición del robot
+- `/map` (`nav_msgs/OccupancyGrid`) — mapa parcial en crecimiento usado por Nav2
+- `/cmd_vel` (`geometry_msgs/Twist`) — comandos de velocidad generados por Nav2
+
+> **Cuándo usarlo:** útil para explorar un entorno desconocido y navegar dentro de él sin necesidad de un paso previo de mapeo. El mapa crece con cada zona que el robot recorre — cuanto más explores, más completo estará el mapa disponible para planificar rutas.
+
+> **Para guardar el mapa** al terminar la sesión, abre un terminal nuevo y ejecuta desde la carpeta donde quieras guardarlo:
+> ```bash
+> mkdir -p ~/mis_mapas && cd ~/mis_mapas
+> ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "name:
+>   data: '$(pwd)/mi_mapa'"
+> ```
+> Luego puedes usarlo pasándolo con `map:=~/mis_mapas/mi_mapa.yaml`.
+
+---
+
+## Resumen de launches de navegación
+
+| Launch | Propósito |
+|---|---|
+| `slam:=true rviz:=true` | Construir el mapa con SLAM Toolbox |
+| `localization:=true nav2:=true rviz:=true` | Navegación autónoma con mapa existente |
+| `slam:=true nav2:=true rviz:=true` | SLAM y navegación simultáneos sin mapa previo |
 
 </details>
