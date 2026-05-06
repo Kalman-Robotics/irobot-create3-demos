@@ -38,15 +38,13 @@ cd ~/rrbot_ws
 sudo rosdep init
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
-sudo apt update
-sudo apt install ros-humble-irobot-create-msgs
 ```
 
 ### 3. Compilar
 
 ```bash
 cd ~/rrbot_ws
-colcon build --symlink-install
+colcon build --packages-up-to irobot
 source install/setup.bash
 echo "source ~/rrbot_ws/install/setup.bash" >> ~/.bashrc
 ```
