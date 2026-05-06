@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>irobot</name>
+  <version>0.0.0</version>
+  <description>
+    Meta-paquete del stack iRobot Create 3 de Kalman Robotics.
+    Agrupa todos los paquetes del robot para compilar el stack completo con:
+      colcon build --packages-up-to irobot
+  </description>
+  <maintainer email="kalmanrobotics@gmail.com">Kalman Robotics</maintainer>
+  <license>Apache License, Version 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Paquetes del stack iRobot (este repo) -->
+  <exec_depend>irobot_demos</exec_depend>
+  <exec_depend>irobot_navigation</exec_depend>
+
+  <!-- Descripción y mensajes propios del hardware -->
+  <exec_depend>irobot_create_msgs</exec_depend>
+  <exec_depend>irobot_create_description</exec_depend>
+
+  <!-- Overlay de telemetría en RViz -->
+  <exec_depend>rviz_2d_overlay_msgs</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

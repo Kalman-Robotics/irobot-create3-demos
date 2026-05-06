@@ -64,7 +64,10 @@ echo "source ~/rrbot_ws/install/setup.bash" >> ~/.bashrc
 
 ---
 
-## Demos disponibles
+## DEMOS
+
+<details>
+<summary><b>Demos disponibles</b></summary>
 
 > **Orientación del robot:** la parte delantera del iRobot Create 3 se referencia por la flecha dibujada.
 
@@ -269,3 +272,24 @@ ros2 run irobot_demos explorador --ros-args -p burbuja:=0.60
 | `/imu` | `sensor_msgs/Imu` | antivuelco, telemetria_live |
 | `/battery_state` | `sensor_msgs/BatteryState` | telemetria_live |
 | `/estación de carga_status` | `irobot_create_msgs/DockStatus` | telemetria_live |
+
+</details>
+
+<details open>
+<summary><b>Navegación Autónoma</b></summary>
+
+![mapeo](img/nav2_mapeo.png)
+
+![pose inicial por defecto en nav2](img/nav2_pose0.png)
+
+![colocar con click la pose inicial](img/nav2_pose1.png)
+
+![despues del click](img/nav2_pose2.png)
+
+![luego de dar vuelta, localizacion correcta](img/nav2_pose3.png)
+
+![previo a darle click para goal](img/nav2_goal1.png)
+
+![luego del click, ver goal y path](img/nav2_goal2.png)
+
+</details>
