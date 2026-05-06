@@ -278,18 +278,37 @@ ros2 run irobot_demos explorador --ros-args -p burbuja:=0.60
 <details>
 <summary><b>Navegación Autónoma</b></summary>
 
-El RRBOT puede construir un mapa del entorno, localizarse dentro de él y planificar rutas hacia un destino evitando obstáculos en tiempo real. Esta sección cubre el flujo completo: mapear el espacio y luego navegar de forma autónoma.
+El RRBOT puede construir un mapa del entorno, localizarse dentro de él y planificar rutas hacia un destino evitando obstáculos en tiempo real. Esta sección cubre el flujo completo: verificar sensores, mapear el espacio y luego navegar de forma autónoma.
 
-Antes de empezar, asegúrate de que el robot está desacoplado de la estación de carga y el LiDAR está publicando:
+Antes de empezar, asegúrate de que el robot está desacoplado de la estación de carga:
 
 ```bash
 ros2 action send_goal /undock irobot_create_msgs/action/Undock "{}"
-ros2 topic hz /scan
 ```
 
 ---
 
-### Paso 1 — Construir el mapa con SLAM Toolbox
+### Paso 1 — Verificar sensores con `monitor`
+
+Antes de mapear o navegar, confirma que el robot está publicando datos correctamente. Este launch abre RViz con el modelo del robot, el LiDAR, la odometría y el overlay de estado — si ves todo activo, el robot está listo.
+
+```bash
+ros2 launch irobot_navigation monitor.launch.py
+```
+
+**Qué hace:** Lanza RViz con una configuración ligera (sin Nav2) que muestra el modelo 3D del robot, las lecturas del LiDAR en tiempo real, la trayectoria de odometría y el panel de estado del robot en pantalla. Es una verificación rápida antes de iniciar cualquier operación autónoma.
+
+**Qué usa:**
+- `/scan` (`sensor_msgs/LaserScan`) — lecturas del LiDAR
+- `/odom` (`nav_msgs/Odometry`) — posición y orientación del robot
+- `/tf` / `/tf_static` — árbol de transformaciones del robot
+- `/robot_status_overlay` — estado de batería, dock y velocidad en pantalla
+
+Cuando hayas confirmado que los sensores están activos, cierra este launch con `Ctrl+C` y continúa al siguiente paso.
+
+---
+
+### Paso 2 — Construir el mapa con SLAM Toolbox
 
 Con los sensores verificados, mapea el entorno. Mueve el robot lentamente por todo el espacio — cuanto más lo recorras, mejor será el mapa resultante.
 
@@ -333,7 +352,7 @@ Si omites `map:=`, se usará el mapa incluido por defecto en el paquete.
 
 ### Paso 3 — Navegar de forma autónoma
 
-Con el mapa guardado en el Paso 1, lanza la navegación autónoma usando tu propio mapa:
+Con el mapa guardado en el Paso 2, lanza la navegación autónoma usando tu propio mapa:
 
 ```bash
 ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false \
@@ -399,22 +418,15 @@ ros2 launch irobot_navigation autonomous_nav.launch.py use_sim_time:=false slam:
 
 > **Cuándo usarlo:** útil para explorar un entorno desconocido y navegar dentro de él sin necesidad de un paso previo de mapeo. El mapa crece con cada zona que el robot recorre — cuanto más explores, más completo estará el mapa disponible para planificar rutas.
 
-> **Para guardar el mapa** al terminar la sesión, abre un terminal nuevo y ejecuta desde la carpeta donde quieras guardarlo:
-> ```bash
-> mkdir -p ~/mis_mapas && cd ~/mis_mapas
-> ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "name:
->   data: '$(pwd)/mi_mapa'"
-> ```
-> Luego puedes usarlo pasándolo con `map:=~/mis_mapas/mi_mapa.yaml`.
-
 ---
 
 ## Resumen de launches de navegación
 
 | Launch | Propósito |
 |---|---|
-| `slam:=true rviz:=true` | Construir el mapa con SLAM Toolbox |
-| `localization:=true nav2:=true rviz:=true` | Navegación autónoma con mapa existente |
-| `slam:=true nav2:=true rviz:=true` | SLAM y navegación simultáneos sin mapa previo |
+| `monitor.launch.py` | Verificar sensores, LiDAR, odometría y estado del robot |
+| `autonomous_nav.launch.py slam:=true rviz:=true` | Construir el mapa con SLAM Toolbox |
+| `autonomous_nav.launch.py localization:=true nav2:=true rviz:=true` | Navegación autónoma con mapa existente |
+| `autonomous_nav.launch.py slam:=true nav2:=true rviz:=true` | SLAM y navegación simultáneos sin mapa previo |
 
 </details>
